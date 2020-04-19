@@ -10,17 +10,17 @@ from discord.ext import commands
 from discord.utils import get
 #commando prefix toevoegen
 client = commands.Bot(command_prefix= '.')
-
+#als hij klaar is
 @client.event
 async def on_ready():
     print('Potato is cooked.')
-
+#Ping
 @client.command()
 async def ping(ctx):
     await ctx.send(f'Pong!')
 token = open("token.txt", "r").read()
 
-
+#join command 88
 @client.command(pass_context=True)
 async def join(ctx):
     channel = ctx.message.author.voice.channel
@@ -40,8 +40,7 @@ async def join(ctx):
         print(f"The bot has connected to {channel}\n")
 
     await ctx.send(f"Joined {channel}")
-
-
+#leave command nieuw
 @client.command(pass_context=True, aliases=['l', 'lea'])
 async def leave(ctx):
     channel = ctx.message.author.voice.channel
@@ -54,10 +53,39 @@ async def leave(ctx):
     else:
         print("Bot was told to leave voice channel, but was not in one")
         await ctx.send("Don't think I am in a voice channel")
+#nieuwe play commando
+@client.command(pass_context=True, aliases=['pla', 'p'])
+async def play(ctx, search, *, url: str):
 
+    channel = ctx.message.author.voice.channel
+    voice = get(client.voice_clients, guild=ctx.guild)
 
-@client.command(pass_context=True, aliases=['p', 'pla'])
-async def play(ctx, url: str):
+    if voice and voice.is_connected():
+        await voice.move_to(channel)
+    else:
+        voice = await channel.connect()
+
+    await voice.disconnect()
+
+    if voice and voice.is_connected():
+        await voice.move_to(channel)
+    else:
+        voice = await channel.connect()
+        print(f"The bot has connected to {channel}\n")
+
+    await ctx.send(f"Joined {channel}")
+
+    query_string = urllib.parse.urlencode({
+        'search_query': search
+    })
+    htm_content = urllib.request.urlopen(
+        'http://www.youtube.com/results?' + query_string
+    )
+
+    search_results = re.findall('href=\"\\/watch\\?v=(.{11})', htm_content.read().decode())[1]
+
+    youtubelink = search_results
+    url = youtubelink
 
     song_there = os.path.isfile("song.mp3")
     try:
@@ -99,20 +127,5 @@ async def play(ctx, url: str):
     nname = name.rsplit("-", 2)
     await ctx.send(f"Playing: {nname[0]}")
     print("playing\n")
-
-#youtube search commando
-@client.command()
-async def youtube (ctx, *, search):
-
-    query_string = urllib.parse.urlencode({
-        'search_query': search
-    })
-    htm_content = urllib.request.urlopen(
-        'http://www.youtube.com/results?' + query_string
-    )
-
-    search_results = re.findall('href=\"\\/watch\\?v=(.{11})', htm_content.read().decode())
-    await ctx.send('http://www.youtube.com/watch?v=' + search_results[0])
-
 
 client.run(token)
