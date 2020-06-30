@@ -1,136 +1,70 @@
+import asyncio
+import random
+from asyncio import queues
 import discord
-
 import youtube_dl
-
-import urllib.parse, urllib.request, re
-
+import json
+import shutil
 import os
-
 from discord.ext import commands
 from discord.utils import get
-#commando prefix toevoegen
-client = commands.Bot(command_prefix= '.')
-#als hij klaar is
+from pyowm import OWM
+owm = OWM('446527f8a2b47070f927ab4c4f643ef8')
+global mm
+
+client = commands.Bot(command_prefix='!')
+client.remove_command('help')
+client.fetch_offline_members = True
+
+
 @client.event
 async def on_ready():
-    print('Potato is cooked.')
-#Ping
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.streaming, name="!Help"))
+    print('DiscordPythron staat aan')
+
+
+extensions = ['Cogs.events', 'Cogs.misc commands', 'Cogs.Music', 'Cogs.Activity', 'Cogs.Help', 'Cogs.random',]
+
+if __name__ == '__main__':
+    for extension in extensions:
+        client.load_extension(extension)
+
+#functie Coinflip
 @client.command()
-async def ping(ctx):
-    await ctx.send(f'Pong!')
-token = open("token.txt", "r").read()
+async def coinflip(ctx):
+    choices = ["Kop" , "Munt"]
+    rancoin = random.choice(choices)
+    await ctx.send(rancoin)
 
-#join command 88
-@client.command(pass_context=True)
-async def join(ctx):
-    channel = ctx.message.author.voice.channel
-    voice = get(client.voice_clients, guild=ctx.guild)
+#functie weathermap
+@client.command()
+async def weer(ctx):
+    mgr = owm.weather_manager()
+    observation = mgr.weather_at_place('Zuid-Holland, NL')
+    w = observation.weather
+    # Weather details
+    wind = w.wind()  # {'speed': 4.6, 'deg': 330}
+    temperature = w.temperature('celsius')  # {'temp_max': 10.5 'temp': 9.7 'temp_min': 9.0}
+    # Search current weather observations in the surroundings of
+    # lat=22.57W, lon=43.12S (Rio de Janeiro, BR)
+    await ctx.send(f"In Zuid Holland\n" f"is het nu {temperature['temp']} graden\n" f"en de windsnelheid is {wind['speed']} m/s\n")
 
-    if voice and voice.is_connected():
-        await voice.move_to(channel)
-    else:
-        voice = await channel.connect()
-
-    await voice.disconnect()
-
-    if voice and voice.is_connected():
-        await voice.move_to(channel)
-    else:
-        voice = await channel.connect()
-        print(f"The bot has connected to {channel}\n")
-
-    await ctx.send(f"Joined {channel}")
-#informatie functies
-@client.command(pass_context=True, aliases=['fnc', 'func'])
-async def function(ctx):
-    await ctx.send('hoi, hoi, hoi')
-#leave command nieuw
-@client.command(pass_context=True, aliases=['l', 'lea'])
-async def leave(ctx):
-    channel = ctx.message.author.voice.channel
-    voice = get(client.voice_clients, guild=ctx.guild)
-
-    if voice and voice.is_connected():
-        await voice.disconnect()
-        print(f"The bot has left {channel}")
-        await ctx.send(f"Left {channel}")
-    else:
-        print("Bot was told to leave voice channel, but was not in one")
-        await ctx.send("Don't think I am in a voice channel")
-
-#Youtube play commando
-@client.command(pass_context=True, aliases=['pla', 'p'])
-async def play(ctx, search, *, url: str):
-
-    channel = ctx.message.author.voice.channel
-    voice = get(client.voice_clients, guild=ctx.guild)
-
-    if voice and voice.is_connected():
-        await voice.move_to(channel)
-    else:
-        voice = await channel.connect()
-
-    await voice.disconnect()
-
-    if voice and voice.is_connected():
-        await voice.move_to(channel)
-    else:
-        voice = await channel.connect()
-        print(f"The bot has connected to {channel}\n")
-
-    await ctx.send(f"Joined {channel}")
-
-    query_string = urllib.parse.urlencode({
-        'search_query': search
-    })
-    htm_content = urllib.request.urlopen(
-        'http://www.youtube.com/results?' + query_string
+#functie Info
+@client.command()
+async def info(ctx):
+    embed = discord.Embed(
+        title = 'Informatie',
+        description = 'Deze bot is gemaakt door: Jurwin, Thomas, Scotty, Yannick',
+        colour = discord.Colour.blue()
     )
+    embed.set_footer(text='Dank u wel voor het gebruik van onze bot!')
+    embed.set_image(url='https://cdn.discordapp.com/attachments/722524544472055819/726788868002545725/output-onlinepngtools12.png')
+    embed.set_author(name='Informatie over onze Discordbot!')
+    embed.add_field(name='Waarom deze bot?', value='Wij hebben deze bot gemaakt als doel voor ons project. Het leek ons leuk om een bot te gaan maken omdat wij veel bezig zijn in de omgeving discord en er dus veel gebruik van maken. Wij zijn nu afhankelijk van andere bots van buitenaf en met onze bot weten we wat deze bot allemaal kan doen. Dit vinden wij interessant en natuurlijk ook heel leuk om te weten hoe dit nou werkt!', inline=False)
+    embed.add_field(name='Commando', value='!Play, !Leave, !coinflip, !join, !ping, !help, !tag', inline=True)
 
-    search_results = re.findall('href=\"\\/watch\\?v=(.{11})', htm_content.read().decode())[1]
+    await ctx.send(embed=embed)
 
-    youtubelink = search_results
-    url = youtubelink
 
-    song_there = os.path.isfile("song.mp3")
-    try:
-        if song_there:
-            os.remove("song.mp3")
-            print("Removed old song file")
-    except PermissionError:
-        print("Trying to delete song file, but it's being played")
-        await ctx.send("ERROR: Music playing")
-        return
 
-    await ctx.send("Getting everything ready now")
-
-    voice = get(client.voice_clients, guild=ctx.guild)
-
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-    }
-
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        print("Downloading audio now\n")
-        ydl.download([url])
-
-    for file in os.listdir("./"):
-        if file.endswith(".mp3"):
-            name = file
-            print(f"Renamed File: {file}\n")
-            os.rename(file, "song.mp3")
-
-    voice.play(discord.FFmpegPCMAudio("song.mp3"), after=lambda e: print("Song done!"))
-    voice.source = discord.PCMVolumeTransformer(voice.source)
-    voice.source.volume = 0.07
-
-    nname = name.rsplit("-", 2)
-    await ctx.send(f"Playing: {nname[0]}")
-    print("playing\n")
-
-client.run(token)
+client.run('Njg0MzYzMjgyNTg0MTc0NTky.XrsGAA.nEZdAEAW2SHwEzCx1Ur8wWfwtRI')
